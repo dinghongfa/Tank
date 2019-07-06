@@ -1,0 +1,118 @@
+local SpriteAnim = class("SpriteAnim")
+
+function SpriteAnim:ctor(sp)
+    -- 动画表
+    self.anim = {}
+    self.sp = sp
+end
+
+local function setFrame(sp, def, index)
+    if sp == nil then return end
+
+    local spriteFrameCache = cc.SpriteFrameCache:getInstance()
+    local final
+    -- 带动画名的动画帧
+    if def.name ~= nil then
+        final = string.format("%s_%s%d.png", def.spname, def.name, index)
+    else
+        -- 不带动画帧
+        final = string.format("%s%d.png", def.spname, index)
+    end
+
+    local frame = spriteFrameCache:getSpriteFrame(final)
+
+    if frame == nil then print("sprite frame not found", name) end
+
+    sp:setSpriteFrame(frame)
+
+end
+
+function SpriteAnim:Define(name, spname, frameCount, interval, once)
+
+    local spriteFrameCache = cc.SpriteFrameCache:getInstance()
+
+    local def = {
+        ["currFrame"] = 0,
+        ["running"] = false,
+        ["name"] = name,
+        ["spname"] = spname,
+        ["frmaeCount"] = frameCount,
+        ["interval"] = interval,
+        ["once"] = once,
+        ["advanceFrame"] = function(defSelf)
+
+            defSelf.currFrame = defSelf.currFrame + 1
+
+            if defSelf.currFrame >= defSelf.frameCount then
+                defSelf.currFrame = 0
+                return false
+            end
+            return true
+        end
+    }
+
+    -- 不带动作
+    if name == nil then
+        self.anim[spname] = def
+    else
+        -- 带动作的
+        self.anim[name] = def
+    end
+
+end
+
+function SpriteAnim:SetFrame(name, index)
+    local def = self.anim[name]
+    if def == nil then return end
+    setFrame(self.sp, def, index)
+
+end
+
+function SpriteAnim:Play(name, callback)
+
+    local def = self.anim[name]
+    if def == nil then return end
+
+    if def.shid == nil then
+        def.shid = cc.Director:getInstance():scheduleScriptFunc()
+
+        if def.running then
+
+            if def:advanceFrame() then
+                setFrame(self.sp, def, def.currFrame)
+            elseif def.once then
+
+                def.running = false
+                cc.Director:getInstance():getScheduler():unscheduleScriptFunc(
+                    def.shid)
+                def.shid = nil
+
+                if callback ~= nil then callback() end
+
+            end
+
+        end
+
+    end
+    def.running = true
+end
+
+function SpriteAnim:Stop(name)
+    local def = self.anim[name]
+    if def == nil then return end
+    def.running = false
+end
+
+function SpriteAnim:Destory()
+    for name, def in pairs(self.anim) do
+        if def.shid then
+            cc.Director:getInstance():getScheduler():unschduleScriptFunc(
+                def.shid)
+        end
+
+    end
+    self.sp = nil
+end
+
+
+return SpriteAnim
